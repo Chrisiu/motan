@@ -20,13 +20,13 @@ package com.weibo.api.motan.protocol.rpc;
 
 import com.weibo.api.motan.common.URLParamType;
 import com.weibo.api.motan.core.extension.ExtensionLoader;
+import com.weibo.api.motan.exception.MotanFrameworkException;
 import com.weibo.api.motan.rpc.AbstractExporter;
 import com.weibo.api.motan.rpc.Exporter;
 import com.weibo.api.motan.rpc.Provider;
 import com.weibo.api.motan.rpc.URL;
 import com.weibo.api.motan.transport.EndpointFactory;
 import com.weibo.api.motan.transport.ProviderMessageRouter;
-import com.weibo.api.motan.transport.ProviderProtectedMessageRouter;
 import com.weibo.api.motan.transport.Server;
 import com.weibo.api.motan.util.LoggerUtil;
 import com.weibo.api.motan.util.MotanFrameworkUtil;
@@ -38,10 +38,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class DefaultRpcExporter<T> extends AbstractExporter<T> {
 
-    protected Server server;
-    protected EndpointFactory endpointFactory;
     protected final ConcurrentHashMap<String, ProviderMessageRouter> ipPort2RequestRouter;
     protected final ConcurrentHashMap<String, Exporter<?>> exporterMap;
+    protected Server server;
+    protected EndpointFactory endpointFactory;
 
     public DefaultRpcExporter(Provider<T> provider, URL url, ConcurrentHashMap<String, ProviderMessageRouter> ipPort2RequestRouter,
                               ConcurrentHashMap<String, Exporter<?>> exporterMap) {
@@ -63,12 +63,11 @@ public class DefaultRpcExporter<T> extends AbstractExporter<T> {
         String ipPort = url.getServerPortStr();
 
         Exporter<T> exporter = (Exporter<T>) exporterMap.remove(protocolKey);
-
         if (exporter != null) {
             exporter.destroy();
         }
-        ProviderMessageRouter requestRouter = ipPort2RequestRouter.get(ipPort);
 
+        ProviderMessageRouter requestRouter = ipPort2RequestRouter.get(ipPort);
         if (requestRouter != null) {
             requestRouter.removeProvider(provider);
         }
@@ -79,7 +78,14 @@ public class DefaultRpcExporter<T> extends AbstractExporter<T> {
     @Override
     protected boolean doInit() {
         boolean result = server.open();
-
+        if (result && getUrl().getPort() == 0){ // use random port
+            ProviderMessageRouter requestRouter = this.ipPort2RequestRouter.remove(getUrl().getServerPortStr());
+            if (requestRouter == null){
+                throw new MotanFrameworkException("can not find message router. url:" + getUrl().getIdentity());
+            }
+            updateRealServerPort(server.getLocalAddress().getPort());
+            this.ipPort2RequestRouter.put(getUrl().getServerPortStr(), requestRouter);
+        }
         return result;
     }
 
@@ -91,7 +97,7 @@ public class DefaultRpcExporter<T> extends AbstractExporter<T> {
     @Override
     public void destroy() {
         endpointFactory.safeReleaseResource(server, url);
-        LoggerUtil.info("DefaultRpcExporter destory Success: url={}", url);
+        LoggerUtil.info("DefaultRpcExporter destroy Success: url={}", url);
     }
 
     protected ProviderMessageRouter initRequestRouter(URL url) {
@@ -99,7 +105,8 @@ public class DefaultRpcExporter<T> extends AbstractExporter<T> {
         ProviderMessageRouter requestRouter = ipPort2RequestRouter.get(ipPort);
 
         if (requestRouter == null) {
-            ipPort2RequestRouter.putIfAbsent(ipPort, new ProviderProtectedMessageRouter());
+            ProviderMessageRouter router = new ProviderMessageRouter(url);
+            ipPort2RequestRouter.putIfAbsent(ipPort, router);
             requestRouter = ipPort2RequestRouter.get(ipPort);
         }
         requestRouter.addProvider(provider);

@@ -29,7 +29,7 @@ import java.util.Map;
  * @author fishermen
  * @version V1.0 created at: 2013-5-16
  */
-public class DefaultRequest implements Serializable, Request {
+public class DefaultRequest implements Request, Traceable, Serializable {
 
     private static final long serialVersionUID = 1168814620391610215L;
 
@@ -39,10 +39,10 @@ public class DefaultRequest implements Serializable, Request {
     private Object[] arguments;
     private Map<String, String> attachments;
     private int retries = 0;
-
     private long requestId;
-
     private byte rpcProtocolVersion = RpcProtocolVersion.VERSION_1.getVersion();
+    private int serializeNumber = 0;// default serialization is hession2
+    private TraceableContext traceableContext = new TraceableContext();
 
     @Override
     public String getInterfaceName() {
@@ -81,9 +81,8 @@ public class DefaultRequest implements Serializable, Request {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Map<String, String> getAttachments() {
-        return attachments != null ? attachments : Collections.EMPTY_MAP;
+        return attachments != null ? attachments : Collections.<String, String>emptyMap();
     }
 
     public void setAttachments(Map<String, String> attachments) {
@@ -133,4 +132,17 @@ public class DefaultRequest implements Serializable, Request {
         this.rpcProtocolVersion = rpcProtocolVersion;
     }
 
+    @Override
+    public void setSerializeNumber(int number) {
+        this.serializeNumber = number;
+    }
+
+    @Override
+    public int getSerializeNumber() {
+        return serializeNumber;
+    }
+
+    public TraceableContext getTraceableContext() {
+        return traceableContext;
+    }
 }

@@ -3,7 +3,6 @@ package com.weibo.api.motan.proxy;
 import com.weibo.api.motan.cluster.Cluster;
 import com.weibo.api.motan.rpc.DefaultRequest;
 import com.weibo.api.motan.rpc.Request;
-import com.weibo.api.motan.util.ReflectUtil;
 import com.weibo.api.motan.util.RequestIdGenerator;
 
 import java.util.List;
@@ -27,7 +26,6 @@ public class RefererCommonHandler<T> extends AbstractRefererHandler<T> implement
         request.setMethodName(methodName);
         request.setArguments(arguments);
         request.setAttachments(attachments);
-        request.setParamtersDesc(ReflectUtil.getParamsDesc(arguments));
         return invokeRequest(request, returnType, async);
     }
 
@@ -53,12 +51,16 @@ public class RefererCommonHandler<T> extends AbstractRefererHandler<T> implement
 
     @Override
     public Request buildRequest(String methodName, Object[] arguments) {
+        return buildRequest(interfaceName, methodName, arguments);
+    }
+
+    @Override
+    public Request buildRequest(String interfaceName, String methodName, Object[] arguments) {
         DefaultRequest request = new DefaultRequest();
         request.setRequestId(RequestIdGenerator.getRequestId());
         request.setInterfaceName(interfaceName);
         request.setMethodName(methodName);
         request.setArguments(arguments);
-        request.setParamtersDesc(ReflectUtil.getParamsDesc(arguments));
         return request;
     }
 
